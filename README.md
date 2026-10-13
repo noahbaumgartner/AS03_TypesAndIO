@@ -23,9 +23,9 @@ Given the following two data types:
 `data RGB = R | G | B`     -- has exactly 3 possible values.
 
 **Todos:**
-- How many different values exist of type `(Bool, RGB)`? Write them down.
-- How many different values exist of type `Either Bool RGB`? Write them down.
-- How many different values exist of type `RGB -> Bool`? Write them down.
+- How many different values exist of type `(Bool, RGB)`? Write them down. `2 * 3 = 6`
+- How many different values exist of type `Either Bool RGB`? Write them down. `2 + 3 = 5`
+- How many different values exist of type `RGB -> Bool`? Write them down. `2^3 = 8`
 
 Two types `A` and `B` are isomorphic if two functions can be provided:\
 `aTob :: A -> B` and `bToA :: B -> A` such that\
@@ -59,6 +59,36 @@ bToa1 B = Right True
 **Todos:**
 - Show that `(Bool,a)` is isomorphic to `Either a a`.
 - Show that `(a -> b -> c)` is isomorphic to `(a, b) -> c`. This is un- currying.
+
+Solution:
+
+`(Bool, a)` has cardinality `2 * |a|`, and `Either a a` has cardinality `|a| + |a| = 2 * |a|`.
+So they are isomorphic.
+
+```haskell
+-- (Bool, a) ~ Either a a
+pairToEither :: (Bool, a) -> Either a a
+pairToEither (False, x) = Left x
+pairToEither (True,  x) = Right x
+
+eitherToPair :: Either a a -> (Bool, a)
+eitherToPair (Left  x) = (False, x)
+eitherToPair (Right x) = (True,  x)
+```
+
+This is the classic pairing of a boolean flag with a value: the flag tells whether the value sits on the left or the right branch.
+
+Similarly, currying and uncurrying preserves the same information:
+
+```haskell
+curry' :: ((a, b) -> c) -> a -> b -> c
+curry' f a b = f (a, b)
+
+uncurry' :: (a -> b -> c) -> (a, b) -> c
+uncurry' f (a, b) = f a b
+```
+
+Algebraically: `|a -> b -> c| = |c|^(|a|*|b|)` and `|(a,b) -> c| = |c|^(|a|*|b|)`, so both types are isomorphic.
 
 **Note:**\
 Note that this topic can be explored further: One can use [taylor approximation to think about recursive structures](https://web.archive.org/web/20140222144454/http://chris-taylor.github.io/blog/2013/02/11/the-algebra-of-algebraic-data-types-part-ii) and even [derivatives of data types](http://strictlypositive.org/diff.pdf) have a useful interpretation. So be aware: This is a rabbit hole!
@@ -152,6 +182,39 @@ data Expr
 
 Hint: For every value constructor of a type there is a parameter in the corresponding `fold`. 
 
+Solution:
+
+```haskell
+data Expr
+    = Val Int
+    | Add Expr Expr
+    | Mul Expr Expr
+    deriving Show
+
+foldExpr :: (Int -> b) -> (b -> b -> b) -> (b -> b -> b) -> Expr -> b
+foldExpr f _ _ (Val n)   = f n
+foldExpr f g h (Add x y) = g (foldExpr f g h x) (foldExpr f g h y)
+foldExpr f g h (Mul x y) = h (foldExpr f g h x) (foldExpr f g h y)
+
+eval :: Expr -> Int
+eval = foldExpr id (+) (*)
+
+toString :: Expr -> String
+toString = foldExpr show
+    (\x y -> "(" ++ x ++ " + " ++ y ++ ")")
+    (\x y -> "(" ++ x ++ " * " ++ y ++ ")")
+```
+
+Example:
+
+```haskell
+expr = Add (Mul (Val 2) (Val 3)) (Val 5)
+
+eval expr == 11
+
+toString expr == "((2 * 3) + 5)"
+```
+
 ## Part 4. hcp
 **Todos:** 
 - Write a small command line utility, named `hcp`, which copies text files. Use `do`-notation.
@@ -162,6 +225,41 @@ Usage:\
 
 **Optional:** Use `Data.ByteString.Lazy` to implement a variant which handles binary data.
 
+Solution:
+
+```haskell
+module Main where
+
+import System.Environment (getArgs)
+import qualified Data.ByteString.Char8 as BSC
+
+hcp :: FilePath -> FilePath -> IO ()
+hcp src dst = do
+    text <- BSC.readFile src
+    BSC.writeFile dst text
+
+hcp' :: FilePath -> FilePath -> IO ()
+hcp' src dst =
+    BSC.readFile src >>= \text -> BSC.writeFile dst text
+
+main :: IO ()
+main = do
+    args <- getArgs
+    case args of
+        [src, dst] -> hcp src dst
+        _          -> putStrLn "Usage: hcp in.txt out.txt"
+```
+
+Binary variant (optional):
+
+```haskell
+import qualified Data.ByteString.Lazy as LBS
+
+hcpBinary :: FilePath -> FilePath -> IO ()
+hcpBinary src dst = do
+    bs <- LBS.readFile src
+    LBS.writeFile dst bs
+```
 
 ## Part 5. Web Requests
 In this final part, you will query the weather from https://wttr.in/.
@@ -206,6 +304,41 @@ The following functions are imported from `Network.HTTP.Client` and `Network.HTT
 - `L8.putStrLn :: L8.ByteString -> IO ()`
   Prints a ByteString to the console. Imported from `Data.ByteString.Lazy.Char8`.
 
+Solution:
+
+```haskell
+module Main where
+
+import System.Environment (getArgs)
+import Network.HTTP.Client
+import Network.HTTP.Client.TLS
+import qualified Data.ByteString.Lazy.Char8 as L8
+
+weatherUrl :: String -> String
+weatherUrl city = "https://wttr.in/~" ++ city ++ "?format=3"
+
+wttr :: String -> IO ()
+wttr city = do
+    manager <- newManager tlsManagerSettings
+    request <- parseRequest (weatherUrl city)
+    response <- httpLbs request manager
+    L8.putStrLn (responseBody response)
+
+main :: IO ()
+main = do
+    args <- getArgs
+    case args of
+        ["--help"] -> putStrLn "Usage: wttr [--help | city]"
+        [city]      -> wttr city
+        _           -> putStrLn "Usage: wttr [--help | city]"
+```
+
+Example:
+
+```bash
+> wttr Brugg
+Brugg: 🌫  +7°C
+```
 
 ### Hints
 - In case that Powershell does not print unicode characters correctly, try the following to change the code page:
