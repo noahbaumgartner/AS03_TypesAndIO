@@ -3,26 +3,29 @@
 This assignment consists of five parts. Certain parts have introductory text and examples. Your tasks are marked with "**Todo**".
 
 ## Part 1. The algebra of algebraic data types ADT
+
 Cardinality of a type counts the number of possible inhabitants.
 
 Examples:
+
 - `Bool` has two inhabitants: `True` and `False`
 - `Maybe Bool` has three inhabitants: `Nothing`, `Just False`, `Just True`
 
-|Name        | Definition                           | Cardinality   |  
-|---         |---                                   |---            |
-|Void        |`data Void`                           |0              |
-|Unit        |`data () = ()`                        |1              |
-|Sum         |`data Either a b = Left a \| Right b` | \|a\| + \|b\| |
-|Product     |`data (a,b) = (a,b)`                  | \|a\| * \|b\| |
-|Exponential |`data (a->b) = a->b`                  |  \|b\|^\|a\|  |
+| Name        | Definition                            | Cardinality    |
+| ----------- | ------------------------------------- | -------------- |
+| Void        | `data Void`                           | 0              |
+| Unit        | `data () = ()`                        | 1              |
+| Sum         | `data Either a b = Left a \| Right b` | \|a\| + \|b\|  |
+| Product     | `data (a,b) = (a,b)`                  | \|a\| \* \|b\| |
+| Exponential | `data (a->b) = a->b`                  | \|b\|^\|a\|    |
 
 Given the following two data types:
 
 `data Bool = False | True` -- has exactly 2 possible values.\
-`data RGB = R | G | B`     -- has exactly 3 possible values.
+`data RGB = R | G | B` -- has exactly 3 possible values.
 
 **Todos:**
+
 - How many different values exist of type `(Bool, RGB)`? Write them down. `2 * 3 = 6`
 - How many different values exist of type `Either Bool RGB`? Write them down. `2 + 3 = 5`
 - How many different values exist of type `RGB -> Bool`? Write them down. `2^3 = 8`
@@ -36,27 +39,32 @@ a) using algebra\
 b) by giving the two functions
 
 ### Example:
+
 Show that `Either () Bool` is isomorphic to `RGB`.
 
 **Algebra:**\
 |`Either () Bool`| = |RGB| \
 1 + 2 = 3\
-✅  
+✅
+
 ```
 aTob1 :: Either () Bool -> RGB
 aTob1 (Left ()) = R
 aTob1 (Right False) = G
 aTob1 (Right True) = B
 ```
+
 ```
 bToa1 :: RGB -> Either () Bool
 bToa1 R = Left ()
 bToa1 G = Right False
 bToa1 B = Right True
 ```
+
 ✅ (by inspection 🧐, later we will see how to prove it.)
 
 **Todos:**
+
 - Show that `(Bool,a)` is isomorphic to `Either a a`.
 - Show that `(a -> b -> c)` is isomorphic to `(a, b) -> c`. This is un- currying.
 
@@ -93,18 +101,20 @@ Algebraically: `|a -> b -> c| = |c|^(|a|*|b|)` and `|(a,b) -> c| = |c|^(|a|*|b|)
 **Note:**\
 Note that this topic can be explored further: One can use [taylor approximation to think about recursive structures](https://web.archive.org/web/20140222144454/http://chris-taylor.github.io/blog/2013/02/11/the-algebra-of-algebraic-data-types-part-ii) and even [derivatives of data types](http://strictlypositive.org/diff.pdf) have a useful interpretation. So be aware: This is a rabbit hole!
 
-
 ## Part 2. Boolean blindness
+
 **Todo:** Read this short blog post: https://runtimeverification.com/blog/code-smell-boolean-blindness
 
 Bottom line: Use and create new types generously to express intent and to be precise.
 
-
 ## Part 3. Folds
+
 Folds ([catamorphisms](https://en.wikipedia.org/wiki/Catamorphism)) are functions to deconstruct a value.
 
 ### Maybe
+
 A fold for the type `Maybe a` looks like this:
+
 ```
 data Maybe a = Nothing | Just a
 
@@ -112,7 +122,6 @@ foldMaybe :: b -> (a -> b) -> Maybe a -> b
 foldMaybe b _ Nothing  = b
 foldMaybe _ f (Just a) = f a
 ```
-
 
 `foldMaybe` deconstructs a value of type `Maybe a` (the third parameter).
 If it is `Nothing`, the first argument `b` is returned (this can be interpreted as the default value).
@@ -124,6 +133,7 @@ Folds should reconstruct the original value if called with its value constructor
 `foldMaybe Nothing Just == id`
 
 ### Either
+
 ```
 data Either a b = Left a | Right b
 
@@ -137,6 +147,7 @@ Side note: The function `either` is defined in the `Prelude` and the exactly the
 `Law: foldEither Left Right == id`
 
 ### List
+
 ```
 -- data [a] = a : [a] | []
 
@@ -147,11 +158,12 @@ foldList f b (a:as) = f a (foldList f b as)
 
 Observe how the recursive part of (a : **[a]**) appears as a second parameter (a -> **b** -> b).
 
-Side note: The function `foldr` is defined in the `Prelude` and the exactly the same as `foldList`.
+Side note: The function `foldr` is defined in the `Prelude` and the exactly the same as `foldList`. There also exists `foldl` which folds to the left.
 
 `Law: foldList (:) [] == id`
 
 ### Tree
+
 ```
 data Tree a = Branch (Tree a) a (Tree a) | Empty
 
@@ -167,6 +179,7 @@ Observe how the recursive part of (Branch **(Tree a)** a **(Tree a)**) appear as
 ### Expr
 
 Given the following data type for arithmetic expressions:
+
 ```
 data Expr
     = Val Int
@@ -175,18 +188,19 @@ data Expr
     deriving Show
 ```
 
-**Todos:** 
+**Todos:**
+
 - Define the function `foldExpr`.
 - Implement the function `eval :: Expr -> Int` only by parameterizing `foldExpr`.
 - Implement the function `toString :: Expr -> String` only by parameterizing `foldExpr`.
 
-Hint: For every value constructor of a type there is a parameter in the corresponding `fold`. 
+Hint: For every value constructor of a type there is a parameter in the corresponding `fold`.
 
 Solution:
 
 ```haskell
 data Expr
-    = Val Int
+    = Val Int -- Val defines one value in the expr tree
     | Add Expr Expr
     | Mul Expr Expr
     deriving Show
@@ -216,7 +230,9 @@ toString expr == "((2 * 3) + 5)"
 ```
 
 ## Part 4. hcp
-**Todos:** 
+
+**Todos:**
+
 - Write a small command line utility, named `hcp`, which copies text files. Use `do`-notation.
 - Write an alternative implementation, named `hcp'` that omits `do`-notation.
 
@@ -262,21 +278,25 @@ hcpBinary src dst = do
 ```
 
 ## Part 5. Web Requests
+
 In this final part, you will query the weather from https://wttr.in/.
 Firing a HTTP GET request on this URL https://wttr.in/~Zürich?format=3 gives the following result:
-Zürich: ☀️   +17°C
+Zürich: ☀️ +17°C
 
 **Todo:** Your task is to write a command line tool named `wttr` which takes one of two options:
+
 - `--help` shows usage information
 - `city` the city you want to query the current weather for
 
 Example session:
+
 ```
 > wttr Brugg
 Brugg: 🌫  +7°C
 ```
 
 During development, it is convenient to run the code in the repl. To provide command line argument to `main` in the repl there are two possibilities:
+
 - `cabal repl` starts ghci with all dependencies loaded.
 - `:main Zurich` executes `main` with `Zurich` as argument
 - `:set args Zurich` sets the arguments for the whole session
@@ -286,7 +306,8 @@ Note: The compiled executable can be found deep within the build folder `dist-ne
 
 **Optional:** Store the loaded content in a text file with the city and [current time](https://hackage.haskell.org/package/time-1.13/docs/Data-Time-Clock.html#v:getCurrentTime) in the file name.
 
-### Required functions 
+### Required functions
+
 The following functions are imported from `Network.HTTP.Client` and `Network.HTTP.Client.TLS`.
 
 - `newManager tlsManagerSettings :: IO Manager`  
@@ -341,9 +362,12 @@ Brugg: 🌫  +7°C
 ```
 
 ### Hints
+
 - In case that Powershell does not print unicode characters correctly, try the following to change the code page:
+
 ```powershell
-[Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = 
+[Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding =
   [System.Text.Utf8Encoding]::new()  # BOM-less UTF-8
 ```
+
 Source: https://stackoverflow.com/questions/65982138/use-haskell-to-output-utf8-string-in-the-powershell-on-windows-10
